@@ -1,409 +1,541 @@
-// Pest grammar for TeaLang programming language
+# TeaLang Grammar Specification
 
-// Whitespace: spaces, tabs, newlines, and carriage returns (automatically skipped)
-// Example: "let x = 5;" contains spaces around the assignment operator
-WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+## Overview
 
-// Comments: single-line and multi-line comments (automatically skipped)
-COMMENT = _{
-    line_comment
-    | block_comment
+TeaLang is a statically-typed programming language with syntax inspired by Rust. Each program consists of optional module imports, variable declarations, structure definitions, and function declarations/definitions.
+
+```
+program := useStmt* programElement*
+programElement := varDeclStmt | structDef | fnDeclStmt | fnDef
+```
+
+---
+
+## Basic Elements
+
+### Keywords
+
+TeaLang reserves the following keywords:
+- **`let`** - variable declaration
+- **`fn`** - function declaration/definition
+- **`struct`** - structure definition
+- **`if`** / **`else`** - conditional branching
+- **`while`** - loop construct
+- **`break`** / **`continue`** - loop control
+- **`return`** - function return
+- **`i32`** - 32-bit integer type
+- **`use`** - module import
+
+### Identifiers
+
+Identifiers begin with a letter or underscore, followed by any combination of letters, digits, or underscores. Identifiers cannot be keywords.
+
+```
+identifier := [a-zA-Z_][a-zA-Z0-9_]*
+```
+
+Examples: `x`, `count`, `my_getint`, `quickread`, `arr_1`
+
+### Numeric Literals
+
+TeaLang supports decimal integer literals. A number is either zero or starts with a non-zero digit.
+
+```
+num := 0 | [1-9][0-9]*
+```
+
+Examples: `0`, `1`, `42`, `1005`
+
+### Whitespace
+
+Spaces, tabs, newlines, and carriage returns are automatically skipped between tokens.
+
+---
+
+## Module System
+
+### Use Statement
+
+Import external modules (typically the standard library) using the `use` keyword.
+
+```
+useStmt := < use > identifier < ; >
+```
+
+Example:
+```rust
+use std;
+```
+
+---
+
+## Type System
+
+### Type Specifications
+
+TeaLang supports primitive types and user-defined types.
+
+```
+typeSpec := < i32 > | identifier
+```
+
+Examples: `i32`, `Node`, `Queue`
+
+### Variable Declarations
+
+Variables can be declared with or without type annotations, and can be scalars, arrays, or slice references.
+
+```
+varDecl := identifier < : > < & > < [ > typeSpec < ] >                           // slice type (reference)
+         | identifier < : > < [ > typeSpec < ; > num < ] >                        // array with size
+         | identifier < : > typeSpec                                              // scalar with type
+         | identifier < [ > num < ] >                                             // array without type
+         | identifier                                                             // scalar without type
+```
+
+Examples:
+```rust
+n:i32                    // scalar integer
+arr: [i32; 100]         // array of 100 integers
+input: &[i32]           // slice reference (pointer to array)
+que[1005]               // array without explicit type
+count                   // scalar without type
+```
+
+### Variable Declaration Statements
+
+Declare variables with the `let` keyword, optionally initializing them.
+
+```
+varDeclStmt := < let > varDef < ; >
+             | < let > varDecl < ; >
+
+varDef := identifier < : > < [ > typeSpec < ; > num < ] > < = > < { > rightValList < } >  // array with initializer
+        | identifier < : > typeSpec < = > rightVal                                         // scalar with initializer
+        | identifier < [ > num < ] > < = > < { > rightValList < } >                        // array without type, with initializer
+        | identifier < = > rightVal                                                        // scalar without type, with initializer
+```
+
+Examples:
+```rust
+let n:i32;                          // declare integer
+let x:i32 = 0;                      // declare and initialize
+let arr: [i32; 3] = {1, 2, 3};     // declare and initialize array
+let count = 0;                      // type inference
+```
+
+---
+
+## Structure Definitions
+
+Define custom types using the `struct` keyword with named fields.
+
+```
+structDef := < struct > identifier < { > varDeclList < } >
+varDeclList := varDecl (< , > varDecl)*
+```
+
+Example:
+```rust
+struct Node {
+    value:i32,
+    next:i32
+}
+```
+
+---
+
+## Functions
+
+### Function Declarations
+
+Declare function signatures with optional return types.
+
+```
+fnDeclStmt := fnDecl < ; >
+fnDecl := < fn > identifier < ( > paramDecl? < ) > < -> > typeSpec  // with return type
+        | < fn > identifier < ( > paramDecl? < ) >                   // without return type
+paramDecl := varDeclList
+```
+
+Examples:
+```rust
+fn quickread() -> i32;              // declaration with return type
+fn move(x:i32, y:i32);             // declaration without return type
+fn init();                          // no parameters
+```
+
+### Function Definitions
+
+Provide implementation by adding a code block to the declaration.
+
+```
+fnDef := fnDecl < { > codeBlockStmt* < } >
+```
+
+Example:
+```rust
+fn add(x:i32, y:i32) -> i32 {
+    return x + y;
 }
 
-// Single-line comment: from "//" to end of line
-// Example: "// This is a comment"
-line_comment = { "//" ~ (!("\n" | "\r") ~ ANY)* }
+fn main() -> i32 {
+    let result:i32 = add(5, 3);
+    return result;
+}
+```
 
-// Multi-line comment: from "/*" to "*/"
-// Example: "/* This is a multi-line comment */"
-block_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+### Function Calls
 
-// Operators
-// Example: "fn main() -> i32 { return 0; }"
-op_arrow = { "->" }
-// Example: "if ch <= 57 { }"
-op_le = { "<=" }
-// Example: "if ch >= 48 { }"
-op_ge = { ">=" }
-// Example: "if x == 1 { }"
-op_eq = { "==" }
-// Example: "if i != -1 { }"
-op_ne = { "!=" }
-// Example: "if (x >= 48) && (x <= 57) { }"
-op_and = { "&&" }
-// Example: "if (ch < 48) || (ch > 57) { }"
-op_or = { "||" }
-// Example: "x = x + 1;"
-op_add = { "+" }
-// Example: "x = n - 1;"
-op_sub = { "-" }
-// Example: "x = x * 10;"
-op_mul = { "*" }
-// Example: "num = num / base;"
-op_div = { "/" }
-// Example: "let sum:i32 = 0;"
-op_assign = { "=" }
-// Example: "if !done { continue; }"
-op_not = { "!" }
-// Example: "if i < n { }"
-op_lt = { "<" }
-// Example: "if a[i] > max { max = a[i]; }"
-op_gt = { ">" }
+Functions can be called with module prefixes (for external functions) or locally.
 
-// Delimiters
-// Example: "fn move(x:i32, y:i32) { }"
-lparen = { "(" }
-// Example: "fn move(x:i32, y:i32) { }"
-rparen = { ")" }
-// Example: "fn main() { let x:i32 = 0; }"
-lbrace = { "{" }
-// Example: "fn main() { let x:i32 = 0; }"
-rbrace = { "}" }
-// Example: "let arr: [i32; 100];"
-lbracket = { "[" }
-// Example: "let arr: [i32; 100];"
-rbracket = { "]" }
-// Example: "fn add(x:i32, y:i32) -> i32 { }"
-comma = { "," }
-// Example: "let x:i32 = 0;"
-semicolon = { ";" }
-// Example: "let count:i32 = 0;"
-colon = { ":" }
-// Example: "tail[i].next = head;"
-dot = { "." }
-// Example: "std::getint()"
-double_colon = { "::" }
-// Example: "&[i32]" in function parameters
-ampersand = { "&" }
+```
+fnCall := modulePrefixedCall | localCall
+modulePrefixedCall := identifier < :: > identifier < ( > rightValList? < ) >
+localCall := identifier < ( > rightValList? < ) >
+```
 
-// Numeric literal: zero or a non-zero digit followed by any digits
-// Examples: "0", "1", "10", "48", "57", "1005"
-num = @{
-    "0"
-    | (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+Examples:
+```rust
+std::getint()               // standard library function
+quickread()                 // local function
+addedge(x, y)              // local function with arguments
+std::putch(10)             // standard library with argument
+```
+
+---
+
+## Statements
+
+### Code Block Statements
+
+Statements that can appear within function bodies:
+
+```
+codeBlockStmt := varDeclStmt
+               | assignmentStmt
+               | callStmt
+               | ifStmt
+               | whileStmt
+               | returnStmt
+               | continueStmt
+               | breakStmt
+               | nullStmt
+```
+
+### Assignment Statement
+
+Assign values to variables, array elements, or structure fields.
+
+```
+assignmentStmt := leftVal < = > rightVal < ; >
+leftVal := identifier leftValSuffix*
+leftValSuffix := < [ > indexExpr < ] >                                 // array indexing
+               | < . > identifier                                       // member access
+indexExpr := num | identifier
+```
+
+Examples:
+```rust
+x = 5;                      // simple assignment
+arr[i] = 10;               // array element assignment
+node.value = x;            // struct field assignment
+tail[i].next = head;       // chained access
+```
+
+### Call Statement
+
+Execute a function and discard its return value.
+
+```
+callStmt := fnCall < ; >
+```
+
+Examples:
+```rust
+init();
+std::putch(10);
+addedge(x, y);
+```
+
+### Return Statement
+
+Exit a function with or without a return value.
+
+```
+returnStmt := < return > rightVal < ; >
+            | < return > < ; >
+```
+
+Examples:
+```rust
+return 0;
+return x + y;
+return;                     // void return
+```
+
+### If Statement
+
+Conditional branching with optional else clause.
+
+```
+ifStmt := < if > boolExpr < { > codeBlockStmt* < } > < else > < { > codeBlockStmt* < } >
+        | < if > boolExpr < { > codeBlockStmt* < } >
+```
+
+Example:
+```rust
+if x > 0 {
+    return x;
 }
 
-// Keywords (using @ for atomic rules to prevent whitespace inside)
-// Example: "let x:i32 = 0;"
-kw_let = @{ "let" ~ WHITESPACE }
-// Example: "fn main() -> i32 { }"
-kw_fn = @{ "fn" ~ WHITESPACE }
-// Example: "struct Node { value:i32, next:i32 }"
-kw_struct = @{ "struct" ~ WHITESPACE }
-// Example: "if x > 0 { }"
-kw_if = @{ "if" ~ WHITESPACE }
-// Example: "if x > 0 { } else { }"
-kw_else = @{ "else" ~ &(WHITESPACE | lbrace) }
-// Example: "while i < 10 { i = i + 1; }"
-kw_while = @{ "while" ~ WHITESPACE }
-// Example: "while 1 > 0 { if done { break; } }"
-kw_break = @{ "break" ~ &(WHITESPACE | semicolon) }
-// Example: "while i < n { if inq[temp] == 0 { continue; } i = i + 1; }"
-kw_continue = @{ "continue" ~ &(WHITESPACE | semicolon) }
-// Example: "return 0;" or "return sum;"
-kw_return = @{ "return" ~ &(WHITESPACE | semicolon) }
-// Example: "let count:i32 = 0;"
-kw_i32 = @{ "i32" ~ &(WHITESPACE | semicolon | comma | rparen | lbrace | rbrace | rbracket | op_assign) }
-// Example: "use std;"
-kw_use = @{ "use" ~ WHITESPACE }
+if ch == 45 {
+    f = 1;
+} else {
+    f = 0;
+}
+```
 
-// Identifier: starts with letter or underscore, followed by letters, digits, or underscores
-// Cannot be a keyword: this step is performed after the keyword is recognized.
-// Examples: "x", "count", "my_getint", "quickread", "arr", "head", "tail", "inq"
-identifier = @{
-    (ASCII_ALPHA | "_") ~ (ASCII_ALPHA | ASCII_DIGIT | "_")*
+### While Statement
+
+Loop with a boolean condition.
+
+```
+whileStmt := < while > boolExpr < { > codeBlockStmt* < } >
+```
+
+Example:
+```rust
+while i < n {
+    i = i + 1;
 }
 
-// Types
-// Type specification: integer type or user-defined type
-// Examples: "i32", "Node", "Queue"
-type_spec = {
-    kw_i32
-    | identifier
+while (ch >= 48) && (ch <= 57) {
+    x = x * 10 + ch - 48;
+    ch = std::getch();
+}
+```
+
+### Break Statement
+
+Exit from the innermost loop.
+
+```
+breakStmt := < break > < ; >
+```
+
+Example:
+```rust
+while 1 > 0 {
+    if done {
+        break;
+    }
+}
+```
+
+### Continue Statement
+
+Skip to the next iteration of the loop.
+
+```
+continueStmt := < continue > < ; >
+```
+
+Example:
+```rust
+while i < n {
+    if inq[temp] == 0 {
+        continue;
+    }
+    i = i + 1;
+}
+```
+
+### Null Statement
+
+An empty statement (just a semicolon).
+
+```
+nullStmt := < ; >
+```
+
+---
+
+## Expressions
+
+### Right Values
+
+Values that can appear on the right side of assignments.
+
+```
+rightVal := boolExpr | arithExpr
+rightValList := rightVal (< , > rightVal)*
+```
+
+### Arithmetic Expressions
+
+Arithmetic expressions support addition, subtraction, multiplication, and division with standard precedence.
+
+```
+arithExpr := arithTerm (arithAddOp arithTerm)*
+arithTerm := exprUnit (arithMulOp exprUnit)*
+arithAddOp := < + > | < - >
+arithMulOp := < * > | < / >
+```
+
+Examples:
+```rust
+x + 1
+n - 1
+x * 10 + ch - 48
+num / base
+```
+
+### Expression Units
+
+Primary expressions that form the building blocks of larger expressions.
+
+```
+exprUnit := < ( > arithExpr < ) >
+          | fnCall
+          | < - > num                                       // negative literal
+          | num
+          | identifier exprSuffix*
+exprSuffix := < [ > indexExpr < ] >                        // array indexing
+            | < . > identifier                              // member access
+```
+
+Examples:
+```rust
+42
+x
+arr[i]
+node.value
+std::getint()
+0-x                     // negative number
+(a + b) * c            // parenthesized expression
+list[cnt].next         // chained access
+```
+
+### Boolean Expressions
+
+Boolean expressions support logical AND, OR, NOT, and comparison operators.
+
+```
+boolExpr := boolAndTerm (< || > boolAndTerm)*
+boolAndTerm := boolUnitAtom (< && > boolUnitAtom)*
+boolUnitAtom := boolUnitParen
+              | boolComparison
+              | < ! > boolUnitAtom
+boolUnitParen := < ( > boolExpr < ) >
+               | < ( > exprUnit compOp exprUnit < ) >
+boolComparison := exprUnit compOp exprUnit
+compOp := < <= > | < >= > | < == > | < != > | < < > | < > >
+```
+
+Examples:
+```rust
+x > 0
+x == 1
+i != -1
+(x >= 48) && (x <= 57)
+(ch < 48) || (ch > 57)
+!done
+```
+
+---
+
+## Operators
+
+### Arithmetic Operators
+
+| Operator | Description       | Example |
+|----------|-------------------|---------|
+| `+`      | Addition          | `x + 1` |
+| `-`      | Subtraction       | `n - 1` |
+| `*`      | Multiplication    | `x * 10`|
+| `/`      | Division          | `n / 2` |
+
+### Comparison Operators
+
+| Operator | Description              | Example  |
+|----------|--------------------------|----------|
+| `==`     | Equal to                 | `x == 1` |
+| `!=`     | Not equal to             | `i != -1`|
+| `<`      | Less than                | `i < n`  |
+| `>`      | Greater than             | `a > max`|
+| `<=`     | Less than or equal to    | `ch <= 57`|
+| `>=`     | Greater than or equal to | `ch >= 48`|
+
+### Logical Operators
+
+| Operator | Description    | Example              |
+|----------|----------------|----------------------|
+| `&&`     | Logical AND    | `(x >= 0) && (x < 10)`|
+| `\|\|`     | Logical OR     | `(ch < 48) \|\| (ch > 57)`|
+| `!`      | Logical NOT    | `!done`              |
+
+### Other Operators
+
+| Operator | Description          | Example           |
+|----------|----------------------|-------------------|
+| `=`      | Assignment           | `x = 5;`          |
+| `->`     | Function return type | `fn main() -> i32`|
+| `::`     | Module separator     | `std::getint()`   |
+| `&`      | Reference            | `&[i32]`          |
+
+---
+
+## Complete Example
+
+```rust
+use std;
+
+struct Node {
+    value:i32,
+    next:i32
 }
 
-// Program structure
-// A complete TeaLang program: optional use statements, followed by program elements
-// Example: "use std; let n:i32; fn main() -> i32 { return 0; }"
-program = {
-    SOI ~ use_stmt* ~ program_element* ~ EOI
+let head:i32;
+let nodes: [Node; 100];
+let count:i32 = 0;
+
+fn init() {
+    head = 0-1;
+    count = 0;
 }
 
-// Use statement
-// Import a module (typically 'std' for standard library)
-// Example: "use std;"
-use_stmt = {
-    kw_use ~ identifier ~ semicolon
+fn add_node(val:i32) {
+    nodes[count].value = val;
+    nodes[count].next = head;
+    head = count;
+    count = count + 1;
 }
 
-// Program element: variable declaration, struct definition, function declaration or definition
-// Examples: "let n:i32;", "struct Node { val:i32 }", "fn main() -> i32 { return 0; }"
-program_element = {
-    var_decl_stmt
-    | struct_def
-    | fn_decl_stmt
-    | fn_def
+fn main() -> i32 {
+    init();
+    
+    let n:i32 = std::getint();
+    let i:i32 = 0;
+    
+    while i < n {
+        let val:i32 = std::getint();
+        add_node(val);
+        i = i + 1;
+    }
+    
+    return 0;
 }
+```
 
-// Struct definition
-// Define a structure with named fields
-// Example: "struct Node { value:i32, next:i32 }"
-struct_def = {
-    kw_struct ~ identifier ~ lbrace ~ var_decl_list ~ rbrace
-}
+---
 
-// Variable declarations
-// List of variable declarations separated by commas
-// Example: "x:i32, y:i32, z:i32"
-var_decl_list = {
-    var_decl ~ (comma ~ var_decl)*
-}
+## Notes
 
-// Variable declaration: can be array or scalar, with or without type annotation
-// Examples: "n:i32", "arr: [i32; 100]", "que[1005]", "count", "input: &[i32]"
-var_decl = {
-    identifier ~ colon ~ ampersand ~ lbracket ~ type_spec ~ rbracket  // slice type: &[T] (pointer to first element)
-    | identifier ~ colon ~ lbracket ~ type_spec ~ semicolon ~ num ~ rbracket  // array with type (Rust style)
-    | identifier ~ colon ~ type_spec  // scalar with type
-    | identifier ~ lbracket ~ num ~ rbracket  // array without type
-    | identifier  // scalar without type
-}
-
-// Variable declaration statement: declare and optionally initialize a variable
-// Examples: "let n:i32;", "let x:i32 = 0;", "let arr: [i32; 100] = {0, 1, 2};"
-var_decl_stmt = {
-    kw_let ~ var_def ~ semicolon
-    | kw_let ~ var_decl ~ semicolon
-}
-
-// Variable definition with initialization
-// Examples: "let x:i32 = 0;", "let arr: [i32; 3] = {1, 2, 3};"
-var_def = {
-    identifier ~ colon ~ lbracket ~ type_spec ~ semicolon ~ num ~ rbracket ~ op_assign ~ lbrace ~ right_val_list ~ rbrace  // array with type (Rust style)
-    | identifier ~ colon ~ type_spec ~ op_assign ~ right_val  // scalar with type
-    | identifier ~ lbracket ~ num ~ rbracket ~ op_assign ~ lbrace ~ right_val_list ~ rbrace  // array without type
-    | identifier ~ op_assign ~ right_val  // scalar without type
-}
-
-// Function declarations and definitions
-// Function declaration statement: declare a function without implementation
-// Example: "fn quickread() -> i32;"
-fn_decl_stmt = {
-    fn_decl ~ semicolon
-}
-
-// Function declaration: signature with optional return type
-// Examples: "fn main() -> i32", "fn move(x:i32, y:i32)", "fn init()"
-fn_decl = {
-    kw_fn ~ identifier ~ lparen ~ param_decl? ~ rparen ~ op_arrow ~ type_spec
-    | kw_fn ~ identifier ~ lparen ~ param_decl? ~ rparen
-}
-
-// Parameter declaration: list of parameter variables
-// Example: "x:i32, y:i32" in "fn add(x:i32, y:i32) -> i32 { }"
-param_decl = {
-    var_decl_list
-}
-
-// Function definition: declaration with implementation
-// Example: "fn main() -> i32 { let x:i32 = 0; return x; }"
-fn_def = {
-    fn_decl ~ lbrace ~ code_block_stmt* ~ rbrace
-}
-
-// Statements
-// Code block statement: any statement that can appear in a function body
-// Examples: "let i:i32 = 0;", "x = x + 1;", "std::putint(n);", "if x > 0 { }", "while i < n { }"
-code_block_stmt = {
-    var_decl_stmt
-    | assignment_stmt
-    | call_stmt
-    | if_stmt
-    | while_stmt
-    | return_stmt
-    | continue_stmt
-    | break_stmt
-    | null_stmt
-}
-
-// Assignment statement: assign a value to a variable, array element, or struct field
-// Examples: "x = 5;", "arr[i] = 10;", "node.value = x;"
-assignment_stmt = {
-    left_val ~ op_assign ~ right_val ~ semicolon
-}
-
-// Call statement: function call as a statement (result discarded)
-// Examples: "init();", "std::putch(10);", "addedge(x, y);"
-call_stmt = {
-    fn_call ~ semicolon
-}
-
-// Return statement: return from a function with or without a value
-// Examples: "return 0;", "return x + y;", "return;"
-return_stmt = {
-    kw_return ~ right_val ~ semicolon
-    | kw_return ~ semicolon
-}
-
-// If statement: conditional branching with optional else clause
-// Examples: "if x > 0 { return x; }", "if ch == 45 { f = 1; } else { f = 0; }"
-if_stmt = {
-    kw_if ~ bool_expr ~ lbrace ~ code_block_stmt* ~ rbrace ~ kw_else ~ lbrace ~ code_block_stmt* ~ rbrace
-    | kw_if ~ bool_expr ~ lbrace ~ code_block_stmt* ~ rbrace
-}
-
-// While statement: loop with a boolean condition
-// Examples: "while i < n { i = i + 1; }", "while (ch >= 48) && (ch <= 57) { }"
-while_stmt = {
-    kw_while ~ bool_expr ~ lbrace ~ code_block_stmt* ~ rbrace
-}
-
-// Break statement: exit from a loop
-// Example: "while 1 > 0 { if done { break; } }"
-break_stmt = {
-    kw_break ~ semicolon
-}
-
-// Continue statement: skip to next iteration of a loop
-// Example: "while 1 > 0 { c = std::getch() - ascii_0; if (c < 0) || (c > 9) { continue; } }"
-continue_stmt = {
-    kw_continue ~ semicolon
-}
-
-// Null statement: empty statement (just a semicolon)
-// Example: ";" (used for empty loop bodies or as placeholder)
-null_stmt = {
-    semicolon
-}
-
-// Expressions
-// Right value: a value that can appear on the right side of assignment
-// Can be a boolean expression or arithmetic expression
-// Examples: "x + 1", "x > 0", "(a && b) || c"
-right_val = {
-    bool_expr
-    | arith_expr
-}
-
-// Right value list: comma-separated list of values
-// Example: "0, 1, 2" in "let arr: [i32; 3] = {0, 1, 2};"
-right_val_list = {
-    right_val ~ (comma ~ right_val)*
-}
-
-// Boolean expressions with precedence
-// Boolean OR has lowest precedence, connecting AND terms
-// Example: "(ch < 48) || (ch > 57)" in "while (ch < 48) || (ch > 57) { }"
-bool_expr = {
-    bool_and_term ~ (op_or ~ bool_and_term)*
-}
-
-// Boolean AND term: connects boolean units with AND operator
-// Example: "(ch >= 48) && (ch <= 57)" in "while (ch >= 48) && (ch <= 57) { }"
-bool_and_term = {
-    bool_unit_atom ~ (op_and ~ bool_unit_atom)*
-}
-
-// Boolean unit atom: basic boolean expression (comparison, negation, or parenthesized)
-// Examples: "x > 0", "!done", "(a == b)"
-bool_unit_atom = {
-    bool_unit_paren
-    | bool_comparison
-    | op_not ~ bool_unit_atom
-}
-
-// Parenthesized boolean expression or comparison
-// Examples: "(x > 0)", "(ch >= 48)"
-bool_unit_paren = {
-    lparen ~ bool_expr ~ rparen
-    | lparen ~ expr_unit ~ comp_op ~ expr_unit ~ rparen
-}
-
-// Boolean comparison: compare two expressions
-// Examples: "x == 1", "i < n", "arr[i] > max"
-bool_comparison = {
-    expr_unit ~ comp_op ~ expr_unit
-}
-
-// Comparison operators
-// Examples: "<=", ">=", "==", "!=", "<", ">"
-comp_op = {
-    op_le | op_ge | op_eq | op_ne | op_lt | op_gt
-}
-
-// Arithmetic expressions with precedence
-// Arithmetic expression: addition and subtraction (lower precedence)
-// Examples: "x + 1", "n - 1", "x * 10 + ch - 48"
-arith_expr = {
-    arith_term ~ (arith_add_op ~ arith_term)*
-}
-
-// Arithmetic term: multiplication and division (higher precedence)
-// Examples: "x * 10", "num / base", "a * b / c"
-arith_term = {
-    expr_unit ~ (arith_mul_op ~ expr_unit)*
-}
-
-// Addition and subtraction operators
-// Examples: "+", "-"
-arith_add_op = { op_add | op_sub }
-// Multiplication and division operators
-// Examples: "*", "/"
-arith_mul_op = { op_mul | op_div }
-
-// Expression units (primary expressions)
-// Using postfix syntax to handle chaining: id[0].member[1]
-// Examples: "x", "10", "arr[i]", "node.value", "std::getint()", "0-x" (negative)
-expr_unit = {
-    lparen ~ arith_expr ~ rparen
-    | fn_call
-    | op_sub ~ num  // negative number
-    | num
-    | identifier ~ expr_suffix*
-}
-
-// Expression suffix: array indexing or member access (can be chained)
-// Examples: "[i]" in "arr[i]", ".value" in "node.value", "[cnt].next" in "list[cnt].next"
-expr_suffix = {
-    lbracket ~ index_expr ~ rbracket  // array indexing
-    | dot ~ identifier  // member access
-}
-
-// Index expression: numeric or variable index for array access
-// Examples: "0", "i", "cnt" in "arr[i]", "head[0]", "que[cnt]"
-index_expr = {
-    num | identifier
-}
-
-// Left values (assignable expressions) - same pattern
-// Examples: "x", "arr[i]", "node.value", "to[cnt]"
-left_val = {
-    identifier ~ left_val_suffix*
-}
-
-// Left value suffix: array indexing or member access for assignment target
-// Examples: "[i]" in "arr[i] = 0;", ".next" in "head[from] = cnt;"
-left_val_suffix = {
-    lbracket ~ index_expr ~ rbracket  // array indexing
-    | dot ~ identifier  // member access
-}
-
-// Function calls
-// Function call: either module-prefixed or local
-// Examples: "std::getint()", "quickread()", "addedge(x, y)"
-fn_call = {
-    module_prefixed_call
-    | local_call
-}
-
-// Function call with module prefix (e.g., std::getint())
-// Examples: "std::getint()", "std::putch(10)", "std::timer_start(97)"
-module_prefixed_call = {
-    identifier ~ double_colon ~ identifier ~ lparen ~ right_val_list? ~ rparen
-}
-
-// Local function call (no module prefix)
-// Examples: "quickread()", "init()", "addedge(x, y)", "same(s, t)"
-local_call = {
-    identifier ~ lparen ~ right_val_list? ~ rparen
-}
+1. **Type Annotations**: Type annotations are optional in many contexts but recommended for clarity.
+2. **Array Syntax**: Arrays use Rust-style syntax: `[type; size]`.
+3. **Slice References**: Use `&[type]` to pass arrays to functions by reference.
+4. **Module System**: Currently only supports importing the `std` module.
+5. **No Implicit Conversions**: All type conversions must be explicit.
+6. **Operator Precedence**: Standard mathematical precedence applies (multiplication/division before addition/subtraction).
+7. **Chained Access**: Array indexing and member access can be chained: `arr[i].field[j]`.
