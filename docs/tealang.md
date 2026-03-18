@@ -111,16 +111,19 @@ que[1005]               // array_decl
 
 ### Variable Declaration Statements
 
-Declare variables with the `let` keyword, optionally initializing them. Array initializers use Rust-style bracket syntax `[...]`.
+Declare variables with the `let` keyword, optionally initializing them. Array initializers support two forms: an explicit element list `[v1, v2, ...]` and a fill syntax `[val; n]` meaning `n` copies of `val`.
 
 ```
 varDeclStmt := < let > varDef < ; >
              | < let > varDecl < ; >
 
-varDef := identifier < : > < [ > typeSpec < ; > num < ] > < = > < [ > rightValList < ] >  // typed_array_decl with initializer
-        | identifier < : > typeSpec < = > rightVal                                         // typed_scalar_decl with initializer
-        | identifier < [ > num < ] > < = > < [ > rightValList < ] >                        // array_decl with initializer
-        | identifier < = > rightVal                                                        // scalar_decl with initializer
+varDef := typed_array_decl  < = > arrayInitializer   // typed array with initializer
+        | typed_scalar_decl < = > rightVal            // typed scalar with initializer
+        | array_decl        < = > arrayInitializer    // untyped array with initializer
+        | scalar_decl       < = > rightVal            // scalar with initializer (type inferred)
+
+arrayInitializer := < [ > rightValList < ] >          // explicit list: [1, 2, 3]
+                  | < [ > rightVal < ; > num < ] >    // fill syntax:   [0; 5] means five 0s
 ```
 
 > **Note:** `slice_decl` cannot appear in `let` statements.
@@ -129,8 +132,10 @@ Examples:
 ```rust
 let n:i32;                              // declare typed scalar
 let x:i32 = 0;                          // declare and initialize typed scalar
-let arr: [i32; 3] = [1, 2, 3];         // declare and initialize typed array
-let que[1005] = [0, 0, 0];             // declare and initialize untyped array
+let arr: [i32; 3] = [1, 2, 3];         // declare and initialize typed array (explicit list)
+let buf: [i32; 5] = [0; 5];            // declare and initialize typed array (fill syntax)
+let que[3] = [1, 2, 3];               // declare and initialize untyped array (explicit list)
+let que[5] = [0; 5];                  // declare and initialize untyped array (fill syntax)
 let count = 0;                          // type inference scalar
 ```
 
@@ -163,7 +168,7 @@ Declare function signatures with optional return types. Function parameters may 
 
 ```
 fnDeclStmt := fnDecl < ; >
-fnDecl := < fn > identifier < ( > paramDecl? < ) > < -> > typeSpec  // with return type
+fndDecl := < fn > identifier < ( > paramDecl? < ) > < -> > typeSpec  // with return type
         | < fn > identifier < ( > paramDecl? < ) >                   // without return type
 paramDecl := paramItem (< , > paramItem)*
 paramItem := slice_decl | varDecl
@@ -569,7 +574,9 @@ fn main() -> i32 {
 
 1. **Top-level Order**: `use` statements, variable declarations, struct definitions, and function declarations/definitions may appear in any order at the top level.
 2. **Type Annotations**: Type annotations are optional for scalars and arrays in `let` statements but recommended for clarity.
-3. **Array Syntax**: Array declarations use Rust-style syntax: `[type; size]`. Array initializers also use brackets: `[val1, val2, ...]`.
+3. **Array Initializers**: Two forms are supported:
+   - `[val1, val2, ...]` — explicit element list (e.g., `[1, 2, 3]`)
+   - `[val; n]` — fill syntax, equivalent to `n` copies of `val` (e.g., `[0; 5]` means five zeros)
 4. **Slice References (`slice_decl`)**: `slice_decl` (`name: &[type]`) is only valid as a function parameter. It cannot appear in `let` statements or struct fields.
 5. **Passing Arrays by Reference**: Use `&identifier` at the call site to pass an array by reference: `fill(&arr, n)`. The corresponding parameter must be declared as a `slice_decl`.
 6. **Variable Declaration Forms**:
