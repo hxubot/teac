@@ -55,15 +55,18 @@ Spaces, tabs, newlines, and carriage returns are automatically skipped between t
 
 ### Use Statement
 
-Import external modules (typically the standard library) using the `use` keyword. `use` statements may appear anywhere at the top level, interleaved with other declarations.
+Import external modules using the `use` keyword. Module paths support multiple levels separated by `::`. `use` statements may appear anywhere at the top level, interleaved with other declarations.
 
 ```
-useStmt := < use > identifier < ; >
+modulePath := identifier (< :: > identifier)*
+
+useStmt := < use > modulePath < ; >
 ```
 
-Example:
+Examples:
 ```rust
-use std;
+use std;               // single-level module
+use a::b::c;           // multi-level module path
 ```
 
 ---
@@ -167,8 +170,8 @@ struct Node {
 Declare function signatures with optional return types. Function parameters may include `slice_decl` to accept array references.
 
 ```
-fnDeclStmt := fnDecl < ; >
-fndDecl := < fn > identifier < ( > paramDecl? < ) > < -> > typeSpec  // with return type
+nfnDeclStmt := fnDecl < ; >
+fnDecl := < fn > identifier < ( > paramDecl? < ) > < -> > typeSpec  // with return type
         | < fn > identifier < ( > paramDecl? < ) >                   // without return type
 paramDecl := paramItem (< , > paramItem)*
 paramItem := slice_decl | varDecl
@@ -212,11 +215,11 @@ fn main() -> i32 {
 
 ### Function Calls
 
-Functions can be called with module prefixes (for external functions) or locally. Array arguments are passed by reference using `&identifier`.
+Functions can be called with module prefixes (for external functions) or locally. Array arguments are passed by reference using `&identifier`. Module prefixes support multiple levels.
 
 ```
 fnCall := modulePrefixedCall | localCall
-modulePrefixedCall := identifier < :: > identifier < ( > argList? < ) >
+modulePrefixedCall := modulePath < :: > identifier < ( > argList? < ) >
 localCall := identifier < ( > argList? < ) >
 
 argList  := arg (< , > arg)*
@@ -226,7 +229,8 @@ arg      := < & > identifier                                        // pass arra
 
 Examples:
 ```rust
-std::getint()               // standard library function
+std::getint()               // single-level module prefix
+a::b::getint()              // multi-level module prefix
 quickread()                 // local function
 addedge(x, y)              // local function with scalar arguments
 fill(&arr, n)              // pass array by reference
@@ -585,7 +589,7 @@ fn main() -> i32 {
    - `array_decl` — `name[size]` (no type)
    - `typed_array_decl` — `name: [type; size]`
    - `slice_decl` — `name: &[type]` (parameter only)
-7. **Module System**: Currently only supports importing the `std` module.
+7. **Module System**: Module paths support multiple levels separated by `::` (e.g., `use a::b::c;`). Functions from external modules are called using the full module path as prefix (e.g., `a::b::fn_name(...)`).
 8. **No Implicit Conversions**: All type conversions must be explicit.
 9. **Operator Precedence**: Standard mathematical precedence applies (multiplication/division before addition/subtraction).
 10. **Chained Access**: Array indexing and member access can be chained: `arr[i].field[j]`.
